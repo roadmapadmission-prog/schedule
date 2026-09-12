@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI画像解析 スケジュール自動登録</title>
+  <style>
+    :root {
+      --primary: #4a90e2;
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --text: #333333;
+    }
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    h1 {
+      font-size: 1.3rem;
+      text-align: center;
+      color: var(--primary);
+      margin: 5px 0;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .card-title {
+      font-weight: bold;
+      font-size: 0.95rem;
+      color: #475569;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .form-group {
+      margin-bottom: 8px;
+    }
+    label {
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #64748b;
+      display: block;
+      margin-bottom: 4px;
+    }
+    input[type="text"], input[type="password"], input[type="date"], select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 0.85rem;
+    }
+    .form-row {
+      display: flex;
+      gap: 8px;
+    }
+    .form-row .form-group {
+      flex: 1;
+    }
+    .person-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .btn-remove {
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .btn-add {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .camera-btn-area {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .btn-camera {
+      flex: 1;
+      background: #0284c7;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 0.9rem;
+      cursor: pointer;
+      text-align: center;
+    }
+    .btn-file {
+      flex: 1;
+      background: #64748b;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 0.9rem;
+      cursor: pointer;
+      text-align: center;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .preview-container {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      margin-top: 10px;
+    }
+    .preview-img {
+      width: 70px;
+      height: 70px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+    }
+    .btn {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .btn:disabled {
+      background: #ccc;
+    }
+    .btn-reset {
+      background: #94a3b8;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+    }
+    .btn-dedup {
+      background: #8b5cf6;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+    }
+    .list-action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #e2e8f0;
+      gap: 8px;
+    }
+    .select-all-label {
+      font-size: 0.8rem;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      margin-bottom: 0;
+      white-space: nowrap;
+    }
+    .sort-select {
+      font-size: 0.75rem;
+      padding: 4px;
+      width: auto;
+    }
+    .btn-bulk-delete {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-bulk-delete:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+    }
+    .event-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .event-item {
+      background: #f0f9ff;
+      border-left: 4px solid var(--primary);
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      position: relative;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .event-checkbox {
+      margin-top: 3px;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .event-content {
+      flex: 1;
+    }
+    .person-tag {
+      display: inline-block;
+      background: #0284c7;
+      color: white;
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+      font-weight: bold;
+    }
+    .highlight-tag {
+      display: inline-block;
+      background: #f59e0b;
+      color: white;
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 4px;
+      font-weight: bold;
+    }
+    .event-date {
+      font-weight: bold;
+      color: #0369a1;
+      margin-bottom: 4px;
+      line-height: 1.5;
+      padding-right: 20px;
+    }
+    .event-detail {
+      font-size: 0.8rem;
+      color: #334155;
+      line-height: 1.4;
+      background: #ffffff;
+      padding: 8px;
+      border-radius: 4px;
+      margin-top: 6px;
+      border: 1px solid #e2e8f0;
+    }
+    .btn-delete-event {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #cbd5e1;
+      color: #475569;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📸 AI画像解析 スケジュール自動登録</h1>
+
+  <!-- 設定・マスター情報 -->
+  <div class="card">
+    <div class="card-title">⚙️ 基本設定</div>
+    <div class="form-group">
+      <label>Gemini APIキー</label>
+      <input type="password" id="apiKeyInput" placeholder="APIキーを入力" oninput="saveSettings()">
+    </div>
+    
+    <div class="form-group" style="margin-top: 10px;">
+      <label>📌 ハイライト（重要）キーワード（読点やスペース区切り）</label>
+      <input type="text" id="highlightKeywordsInput" placeholder="例: 要お弁当 給食なし 早帰り 参観 集金" oninput="saveSettings()">
+    </div>
+
+    <div class="card-title" style="margin-top: 15px;">
+      👨‍👩‍👧‍👦 対象者（家族・メンバー）の設定
+      <button class="btn-add" onclick="addPersonForm()">＋ 追加</button>
+    </div>
+    
+    <div id="peopleContainer"></div>
+  </div>
+
+  <!-- 画像読み込み & 撮影 -->
+  <div class="card">
+    <div class="card-title">
+      📸 プリント・資料読み込み
+      <button class="btn-reset" onclick="resetImageHistory()">解析履歴クリア</button>
+    </div>
+    
+    <div class="camera-btn-area">
+      <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">📷 カメラで撮影</button>
+      <button class="btn-file" onclick="document.getElementById('fileInput').click()">📁 フォルダから選択</button>
+    </div>
+
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleFiles(this.files)">
+    <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this.files)">
+
+    <div class="form-group" style="margin-top: 10px;">
+      <label>プリントの基準日（発行日/配布日）</label>
+      <input type="date" id="baseDate">
+    </div>
+
+    <div id="previewContainer" class="preview-container"></div>
+    
+    <button class="btn" id="analyzeBtn" disabled onclick="analyzeImagesWithGemini()">AIで解析してカレンダーに登録</button>
+  </div>
+
+  <!-- 手動追加フォーム -->
+  <div class="card">
+    <div class="card-title">✏️ 予定の手動追加</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>対象者</label>
+        <select id="manualPersonSelect">
+          <option value="共通">共通</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>日付</label>
+        <input type="date" id="manualDate">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>予定名</label>
+      <input type="text" id="manualTitle" placeholder="例: 授業参観 / 役員会 / 塾の送り迎え">
+    </div>
+    <button class="btn" style="background: #10b981; margin-top: 5px;" onclick="addManualEvent()">予定を追加する</button>
+  </div>
+
+  <!-- 抽出された予定一覧 -->
+  <div class="card">
+    <div class="card-title">
+      📅 登録された予定一覧
+      <button class="btn-dedup" onclick="cleanupDuplicates()">🧹 重複整理</button>
+    </div>
+    
+    <!-- 一括操作エリア -->
+    <div class="list-action-bar">
+      <label class="select-all-label">
+        <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)"> 全選択
+      </label>
+      <select id="sortOrderSelect" class="sort-select" onchange="renderEvents()">
+        <option value="asc">日付が近い順 (昇順)</option>
+        <option value="desc">日付が遠い順 (降順)</option>
+      </select>
+      <button class="btn-bulk-delete" id="bulkDeleteBtn" disabled onclick="deleteSelectedEvents()">選択した予定を削除</button>
+    </div>
+
+    <div id="eventList" class="event-list">
+      <div style="color: #888; font-size: 0.8rem; text-align: center;">予定が追加されるとここに表示されます。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let rawSelectedFiles = [];
+  let personCount = 0;
+  let allEvents = [];
+  const STORAGE_IMAGE_HISTORY_KEY = 'school_app_parsed_images';
+
+  window.onload = function() {
+    document.getElementById('baseDate').valueAsDate = new Date();
+    document.getElementById('manualDate').valueAsDate = new Date();
+    loadSettings();
+    loadEvents();
+  };
+
+  function normalizeDelimiters(text) {
+    if (!text) return "";
+    return text.replace(/[、,，\s]+/g, ', ').replace(/^, |, $/g, '');
+  }
+
+  function getParsedImageHistory() {
+    const history = localStorage.getItem(STORAGE_IMAGE_HISTORY_KEY);
+    return history ? JSON.parse(history) : [];
+  }
+
+  function saveParsedImageHistory(filenames) {
+    const current = getParsedImageHistory();
+    const updated = Array.from(new Set([...current, ...filenames]));
+    localStorage.setItem(STORAGE_IMAGE_HISTORY_KEY, JSON.stringify(updated));
+  }
+
+  function resetImageHistory() {
+    if (confirm("過去の画像解析履歴をリセットしますか？\n（同じ画像をもう一度AI解析できるようになります）")) {
+      localStorage.removeItem(STORAGE_IMAGE_HISTORY_KEY);
+      alert("解析履歴をリセットしました。");
+    }
+  }
+
+  function saveSettings() {
+    const apiKey = document.getElementById('apiKeyInput').value;
+    localStorage.setItem('school_app_api_key', apiKey);
+
+    const highlightKeywords = document.getElementById('highlightKeywordsInput').value;
+    localStorage.setItem('school_app_highlight_keywords', highlightKeywords);
+
+    const people = getPeopleData();
+    localStorage.setItem('school_app_people', JSON.stringify(people));
+    updateManualPersonSelect();
+  }
+
+  function loadSettings() {
+    const savedApiKey = localStorage.getItem('school_app_api_key');
+    if (savedApiKey) {
+      document.getElementById('apiKeyInput').value = savedApiKey;
+    }
+
+    const savedKeywords = localStorage.getItem('school_app_highlight_keywords');
+    if (savedKeywords !== null) {
+      document.getElementById('highlightKeywordsInput').value = savedKeywords;
+    } else {
+      document.getElementById('highlightKeywordsInput').value = "要お弁当 給食なし 早帰り 参観 集金";
+    }
+
+    const savedPeople = localStorage.getItem('school_app_people');
+    if (savedPeople) {
+      const people = JSON.parse(savedPeople);
+      if (people.length > 0) {
+        people.forEach(p => addPersonForm(p.name, p.keywords));
+      } else {
+        addDefaultPeople();
+      }
+    } else {
+      addDefaultPeople();
+    }
+    updateManualPersonSelect();
+  }
+
+  function addDefaultPeople() {
+    addPersonForm("たろう", "第一小学校 2年生 すみれ組 サッカー部");
+    addPersonForm("ママ", "PTA役員 広報係 地区役員");
+  }
+
+  function updateManualPersonSelect() {
+    const select = document.getElementById('manualPersonSelect');
+    select.innerHTML = '<option value="共通">共通</option>';
+    const people = getPeopleData();
+    people.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.name;
+      opt.textContent = p.name;
+      select.appendChild(opt);
+    });
+  }
+
+  function addPersonForm(name = "", keywords = "") {
+    personCount++;
+    const container = document.getElementById('peopleContainer');
+    const div = document.createElement('div');
+    div.className = 'person-box';
+    div.id = `person_box_${personCount}`;
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-size:0.8rem; font-weight:bold; color:#334155;">対象者 #${personCount}</span>
+        <button class="btn-remove" onclick="removePersonForm(${personCount})">削除</button>
+      </div>
+      <div class="form-group">
+        <label>お名前・区分</label>
+        <input type="text" class="person-name" value="${name}" placeholder="例: たろう / パパ / ママ" oninput="saveSettings()">
+      </div>
+      <div class="form-group">
+        <label>関連キーワード・属性（読点やスペース区切りで入力）</label>
+        <input type="text" class="person-keywords" value="${keywords}" placeholder="例: 第一小学校 2年生 すみれ組 サッカー部" oninput="saveSettings()">
+      </div>
+    `;
+    container.appendChild(div);
+    saveSettings();
+  }
+
+  function removePersonForm(id) {
+    const target = document.getElementById(`person_box_${id}`);
+    if (target) target.remove();
+    saveSettings();
+  }
+
+  function getPeopleData() {
+    const boxes = document.querySelectorAll('.person-box');
+    const people = [];
+    boxes.forEach(box => {
+      const name = box.querySelector('.person-name').value.trim();
+      const keywords = box.querySelector('.person-keywords').value.trim();
+      if (name) {
+        people.push({
+          name: name,
+          keywords: normalizeDelimiters(keywords)
+        });
+      }
+    });
+    return people;
+  }
+
+  function saveEvents() {
+    localStorage.setItem('school_app_events', JSON.stringify(allEvents));
+    renderEvents();
+  }
+
+  function loadEvents() {
+    const saved = localStorage.getItem('school_app_events');
+    if (saved) {
+      allEvents = JSON.parse(saved);
+      normalizeAllEventDates();
+      renderEvents();
+    }
+  }
+
+  function parseDateForSort(dateStr) {
+    if (!dateStr) return '9999-99-99';
+    
+    const baseDateVal = document.getElementById('baseDate')?.value;
+    const defaultYear = baseDateVal ? baseDateVal.substring(0, 4) : new Date().getFullYear().toString();
+
+    // 全角英数字を半角に変換
+    let str = String(dateStr).replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xfee0));
+
+    // YYYY-MM-DD や YYYY/MM/DD のパターン
+    let match = str.match(/(\d{4})[^\d]+(\d{1,2})[^\d]+(\d{1,2})/);
+    if (match) {
+      return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+    }
+
+    // MM-DD や MM/DD のパターン（修正箇所：match[3] -> match[2] に変更）
+    match = str.match(/(\d{1,2})[^\d]+(\d{1,2})/);
+    if (match) {
+      return `${defaultYear}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`;
+    }
+
+    return str;
+  }
+
+  function normalizeAllEventDates() {
+    let changed = false;
+    allEvents.forEach(e => {
+      const normalized = parseDateForSort(e.date);
+      if (normalized !== '9999-99-99' && normalized !== e.date) {
+        e.date = normalized;
+        changed = true;
+      }
+    });
+    if (changed) {
+      localStorage.setItem('school_app_events', JSON.stringify(allEvents));
+    }
+  }
+
+  function isSameEvent(e1, e2) {
+    const d1 = parseDateForSort(e1.date);
+    const d2 = parseDateForSort(e2.date);
+    const p1 = (e1.personName || '共通').trim();
+    const p2 = (e2.personName || '共通').trim();
+    const t1 = (e1.title || '').trim();
+    const t2 = (e2.title || '').trim();
+
+    return d1 === d2 && p1 === p2 && t1 === t2;
+  }
+
+  function cleanupDuplicates() {
+    normalizeAllEventDates();
+    const initialCount = allEvents.length;
+    const uniqueEvents = [];
+
+    allEvents.forEach(item => {
+      const exists = uniqueEvents.some(u => isSameEvent(u, item));
+      if (!exists) {
+        uniqueEvents.push(item);
+      } else {
+        const target = uniqueEvents.find(u => isSameEvent(u, item));
+        if (item.detail && item.detail.length > (target.detail || '').length) {
+          target.detail = item.detail;
+        }
+      }
+    });
+
+    const removedCount = initialCount - uniqueEvents.length;
+    allEvents = uniqueEvents;
+    saveEvents();
+
+    if (removedCount > 0) {
+      alert(`${removedCount} 件の重複した予定を削除・統合しました！`);
+    } else {
+      alert('重複する予定はありませんでした。');
+    }
+  }
+
+  function renderEvents() {
+    const eventList = document.getElementById('eventList');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const sortOrder = document.getElementById('sortOrderSelect')?.value || 'asc';
+    
+    selectAllCheckbox.checked = false;
+    eventList.innerHTML = "";
+
+    if (allEvents.length === 0) {
+      eventList.innerHTML = `<div style="color: #888; text-align: center;">予定が追加されるとここに表示されます。</div>`;
+      updateBulkDeleteButtonState();
+      return;
+    }
+
+    const indexedEvents = allEvents.map((item, originalIndex) => ({
+      item,
+      originalIndex,
+      sortKey: parseDateForSort(item.date)
+    }));
+
+    indexedEvents.sort((a, b) => {
+      if (a.sortKey < b.sortKey) return sortOrder === 'asc' ? -1 : 1;
+      if (a.sortKey > b.sortKey) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    indexedEvents.forEach(({ item, originalIndex }) => {
+      const div = document.createElement('div');
+      div.className = 'event-item';
+      
+      let tagsHtml = "";
+      if (item.tags && Array.isArray(item.tags)) {
+        item.tags.forEach(tag => {
+          if (tag) {
+            tagsHtml += `<span class="highlight-tag">📌 ${tag}</span>`;
+          }
+        });
+      }
+
+      const hasDetail = item.detail && item.detail.trim() !== "";
+      const formattedDetail = hasDetail ? item.detail.replace(/\n/g, '<br>') : '';
+
+      div.innerHTML = `
+        <input type="checkbox" class="event-checkbox item-checkbox" data-index="${originalIndex}" onchange="updateBulkDeleteButtonState()">
+        <div class="event-content">
+          <button class="btn-delete-event" onclick="deleteEvent(${originalIndex})">✕</button>
+          <div class="event-date">
+            🗓️ ${item.date} ${item.title}
+            <span class="person-tag">${item.personName || '共通'}</span>
+            ${tagsHtml}
+          </div>
+          ${hasDetail ? `<div class="event-detail">${formattedDetail}</div>` : ''}
+        </div>
+      `;
+      eventList.appendChild(div);
+    });
+
+    updateBulkDeleteButtonState();
+  }
+
+  function toggleSelectAll(masterCheckbox) {
+    const checkboxes = document.querySelectorAll('.item-checkbox');
+    checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+    updateBulkDeleteButtonState();
+  }
+
+  function updateBulkDeleteButtonState() {
+    const checkedBoxes = document.querySelectorAll('.item-checkbox:checked');
+    const btn = document.getElementById('bulkDeleteBtn');
+    const totalBoxes = document.querySelectorAll('.item-checkbox');
+
+    btn.disabled = checkedBoxes.length === 0;
+    btn.textContent = checkedBoxes.length > 0 ? `選択した${checkedBoxes.length}件を削除` : '選択した予定を削除';
+
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (totalBoxes.length > 0 && checkedBoxes.length === totalBoxes.length) {
+      selectAllCheckbox.checked = true;
+    } else {
+      selectAllCheckbox.checked = false;
+    }
+  }
+
+  function deleteSelectedEvents() {
+    const checkedBoxes = document.querySelectorAll('.item-checkbox:checked');
+    if (checkedBoxes.length === 0) return;
+
+    if (confirm(`選択された ${checkedBoxes.length} 件の予定を削除しますか？`)) {
+      const indicesToDelete = Array.from(checkedBoxes)
+        .map(cb => parseInt(cb.getAttribute('data-index'), 10))
+        .sort((a, b) => b - a);
+
+      indicesToDelete.forEach(index => {
+        allEvents.splice(index, 1);
+      });
+
+      saveEvents();
+    }
+  }
+
+  function addManualEvent() {
+    const personName = document.getElementById('manualPersonSelect').value;
+    const rawDate = document.getElementById('manualDate').value;
+    const title = document.getElementById('manualTitle').value.trim();
+
+    if (!title) {
+      alert('予定名を入力してください！');
+      return;
+    }
+
+    const normalizedDate = parseDateForSort(rawDate);
+    const newEvent = { personName, date: normalizedDate, title };
+
+    const isDuplicate = allEvents.some(e => isSameEvent(e, newEvent));
+
+    if (isDuplicate) {
+      if (!confirm('全く同じ予定がすでに登録されています。追加しますか？')) {
+        return;
+      }
+    }
+
+    allEvents.unshift({
+      personName: personName,
+      date: normalizedDate,
+      title: title,
+      tags: [],
+      detail: ""
+    });
+
+    document.getElementById('manualTitle').value = "";
+    saveEvents();
+  }
+
+  function deleteEvent(index) {
+    if (confirm("この予定を削除しますか？")) {
+      allEvents.splice(index, 1);
+      saveEvents();
+    }
+  }
+
+  function handleFiles(files) {
+    const previewContainer = document.getElementById('previewContainer');
+    previewContainer.innerHTML = "";
+    rawSelectedFiles = Array.from(files);
+
+    if (rawSelectedFiles.length > 0) {
+      rawSelectedFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          img.className = 'preview-img';
+          previewContainer.appendChild(img);
+        }
+        reader.readAsDataURL(file);
+      });
+
+      document.getElementById('analyzeBtn').disabled = false;
+    }
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = error => reject(error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function analyzeImagesWithGemini() {
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    const btn = document.getElementById('analyzeBtn');
+
+    if (!apiKey) {
+      alert('Gemini APIキーを入力してください！');
+      return;
+    }
+
+    const history = getParsedImageHistory();
+    const targetFiles = rawSelectedFiles.filter(file => !history.includes(file.name));
+
+    if (targetFiles.length === 0) {
+      alert(`選択された ${rawSelectedFiles.length} 件の画像はすべて過去に解析済みです。\n新しい画像はありません。`);
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = `新規 ${targetFiles.length} 件をAI解析中...`;
+
+    try {
+      const imageParts = await Promise.all(
+        targetFiles.map(async file => ({
+          inline_data: {
+            mime_type: file.type || "image/jpeg",
+            data: await fileToBase64(file)
+          }
+        }))
+      );
+
+      const peopleList = getPeopleData();
+      const baseDate = document.getElementById('baseDate').value;
+      const highlightKeywordsRaw = document.getElementById('highlightKeywordsInput').value;
+      const highlightKeywords = normalizeDelimiters(highlightKeywordsRaw);
+      const peopleJsonStr = JSON.stringify(peopleList, null, 2);
+
+      const promptText = `
+あなたはスケジュール管理の高度なプロアシスタントです。
+提供された画像（学校プリント、会社のお知らせ、地域の連絡網など）から、登録されている対象者に関連する行事や予定を抽出してください。
+
+【登録対象者と関連キーワードリスト】
+${peopleJsonStr}
+
+【プリント・資料の基準日（発行日/配布日）】
+${baseDate || '指定なし'}
+
+【重要・注意すべきハイライトキーワード候補】
+${highlightKeywords || '指定なし'}
+
+【抽出・解析の基本ルール】
+1. 各対象者の「関連キーワード」に該当する予定を選別し、"personName" にその対象者のお名前を入れてください（全体に関わるものは "共通" としてください）。
+2. 関係のない他学年・他部署・無関係な第三者の予定は除外してください。
+3. 単なる挨拶文、一般的な注意事項（例：「検温をお願いします」「遅刻時は連絡を」等）、日付の特定できない単なるお知らせは除外してください。
+4. 【重要】"date" の表記は、必ず「YYYY-MM-DD」形式（例: 2026-09-14）で統一して出力してください。年がプリント内に記載されていない場合は「プリントの基準日」の年を使用してください。
+5. 【重要ハイライト判定】文脈から「重要・注意すべきハイライトキーワード候補」に合致・関連する事項（例：お弁当が必要、給食がない、早帰り、授業参観、持ち物が必要、集金がある等）があれば、それを短く要約して "tags" 配列に入れてください。該当がなければ空配列 [] にしてください。
+6. "detail" には「持ち物」「時間」「場所」「保護者/本人の参加要否」など分かった情報を箇条書き風に詳しくまとめて記載してください。
+7. 余計な挨拶や解説は一切書かず、純粋なJSON配列のみを出力してください。
+
+[
+  {
+    "personName": "対象者のお名前（例: たろう / ママ / 共通）",
+    "date": "YYYY-MM-DD",
+    "title": "予定名",
+    "tags": ["要お弁当", "早帰り"],
+    "detail": "時間：10:00〜\n持ち物：水筒、体操服\n備考：保護者参観あり"
+  }
+]
+`;
+
+      const contentsParts = [{ text: promptText }, ...imageParts];
+      
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: contentsParts }] })
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        alert(`APIエラー: ${data.error.message}`);
+        return;
+      }
+
+      if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+        alert("AIからの応答を取得できませんでした。再度お試しください。");
+        return;
+      }
+
+      const rawText = data.candidates[0].content.parts[0].text;
+      
+      // JSON形式部分（[から]まで）を厳格に抽出する
+      const jsonStart = rawText.indexOf('[');
+      const jsonEnd = rawText.lastIndexOf(']');
+
+      if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+        console.error("AIからの生レスポンス:", rawText);
+        alert("AIからの回答から予定データを読み取れませんでした。もう一度送信してみてください。");
+        return;
+      }
+
+      const cleanJsonStr = rawText.substring(jsonStart, jsonEnd + 1);
+      const newEvents = JSON.parse(cleanJsonStr);
+
+      const newlyParsedNames = targetFiles.map(f => f.name);
+      saveParsedImageHistory(newlyParsedNames);
+
+      if (newEvents.length === 0) {
+        alert('解析完了：該当する新しい予定は見つかりませんでした。');
+        return;
+      }
+
+      let addedCount = 0;
+      newEvents.forEach(newEvent => {
+        newEvent.date = parseDateForSort(newEvent.date);
+
+        const isDuplicate = allEvents.some(existing => isSameEvent(existing, newEvent));
+
+        if (!isDuplicate) {
+          allEvents.unshift(newEvent);
+          addedCount++;
+        }
+      });
+
+      saveEvents();
+      alert(`新規画像 ${targetFiles.length} 件を解析し、${addedCount} 件の予定をカレンダーに追加しました！`);
+
+    } catch (error) {
+      alert(`解析に失敗しました。詳細: ${error.message}`);
+      console.error("解析エラー詳細:", error);
+    } finally {
+      btn.disabled = false;
+      btn.innerText = 'AIで解析してカレンダーに登録';
+    }
+  }
+</script>
+
+</body>
+</html>
