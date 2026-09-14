@@ -456,14 +456,20 @@
     return text.replace(/[、,，\s]+/g, ', ').replace(/^, |, $/g, '');
   }
 
+  // ファイル名 + ファイルサイズ + 最終更新日時で個別のキーを作成（スマホでの同名ファイル対策）
+  function getFileUniqueId(file) {
+    return `${file.name}_${file.size}_${file.lastModified}`;
+  }
+
   function getParsedImageHistory() {
     const history = localStorage.getItem(STORAGE_IMAGE_HISTORY_KEY);
     return history ? JSON.parse(history) : [];
   }
 
-  function saveParsedImageHistory(filenames) {
+  function saveParsedImageHistory(files) {
     const current = getParsedImageHistory();
-    const updated = Array.from(new Set([...current, ...filenames]));
+    const newIds = files.map(f => getFileUniqueId(f));
+    const updated = Array.from(new Set([...current, ...newIds]));
     localStorage.setItem(STORAGE_IMAGE_HISTORY_KEY, JSON.stringify(updated));
   }
 
@@ -899,7 +905,11 @@
     }
 
     const history = getParsedImageHistory();
-    const targetFiles = rawSelectedFiles.filter(file => !history.includes(file.name));
+    // 固有ID（ファイル名_サイズ_更新日時）を使って未解析ファイルのみを抽出
+    const targetFiles = rawSelectedFiles.filter(file => {
+      const fileId = getFileUniqueId(file);
+      return !history.includes(fileId);
+    });
 
     if (targetFiles.length === 0) {
       alert(`選択された ${rawSelectedFiles.length} 件の画像はすべて過去に解析済みです。\n新しい画像はありません。`);
@@ -960,7 +970,7 @@ ${highlightKeywords || '指定なし'}
 `;
 
       const contentsParts = [{ text: promptText }, ...imageParts];
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
       
       const response = await fetch(url, {
         method: 'POST',
@@ -993,8 +1003,7 @@ ${highlightKeywords || '指定なし'}
       const cleanJsonStr = rawText.substring(jsonStart, jsonEnd + 1);
       const newEvents = JSON.parse(cleanJsonStr);
 
-      const newlyParsedNames = targetFiles.map(f => f.name);
-      saveParsedImageHistory(newlyParsedNames);
+      saveParsedImageHistory(targetFiles);
 
       if (newEvents.length === 0) {
         alert('解析完了：該当する新しい予定は見つかりませんでした。');
