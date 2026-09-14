@@ -137,6 +137,11 @@
       gap: 8px;
       overflow-x: auto;
       margin-top: 10px;
+      padding-bottom: 5px;
+    }
+    .preview-item {
+      position: relative;
+      flex-shrink: 0;
     }
     .preview-img {
       width: 70px;
@@ -144,6 +149,22 @@
       object-fit: cover;
       border-radius: 6px;
       border: 1px solid #cbd5e1;
+    }
+    .btn-remove-preview {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 0.65rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .btn {
       width: 100%;
@@ -332,8 +353,8 @@
     </div>
     
     <div class="camera-btn-area">
-      <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">📷 カメラで撮影</button>
-      <button class="btn-file" onclick="document.getElementById('fileInput').click()">📁 フォルダから選択</button>
+      <button class="btn-camera" onclick="triggerFileInput('cameraInput')">📷 カメラで撮影</button>
+      <button class="btn-file" onclick="triggerFileInput('fileInput')">📁 フォルダから選択</button>
     </div>
 
     <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleFiles(this.files)">
@@ -432,6 +453,71 @@
     }
   }
 
+  function triggerFileInput(id) {
+    const input = document.getElementById(id);
+    input.value = ""; // リセットしてから開くことで、同じ画像を選んだ場合もonchangeを発生させる
+    input.click();
+  }
+
+  function clearSelectedImages() {
+    rawSelectedFiles = [];
+    document.getElementById('cameraInput').value = "";
+    document.getElementById('fileInput').value = "";
+    updatePreviewUI();
+  }
+
+  function handleFiles(files) {
+    const newFiles = Array.from(files);
+    if (newFiles.length === 0) return;
+
+    // 既存の写真リストに追加する（上書きしない）
+    rawSelectedFiles = [...rawSelectedFiles, ...newFiles];
+    updatePreviewUI();
+  }
+
+  function removeSelectedFile(index) {
+    rawSelectedFiles.splice(index, 1);
+    updatePreviewUI();
+  }
+
+  function updatePreviewUI() {
+    const previewContainer = document.getElementById('previewContainer');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    previewContainer.innerHTML = "";
+
+    if (rawSelectedFiles.length === 0) {
+      analyzeBtn.disabled = true;
+      analyzeBtn.innerText = 'AIで解析してカレンダーに登録';
+      return;
+    }
+
+    rawSelectedFiles.forEach((file, index) => {
+      const div = document.createElement('div');
+      div.className = 'preview-item';
+
+      const img = document.createElement('img');
+      img.className = 'preview-img';
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'btn-remove-preview';
+      removeBtn.innerHTML = '✕';
+      removeBtn.onclick = () => removeSelectedFile(index);
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+
+      div.appendChild(img);
+      div.appendChild(removeBtn);
+      previewContainer.appendChild(div);
+    });
+
+    analyzeBtn.disabled = false;
+    analyzeBtn.innerText = `計 ${rawSelectedFiles.length} 枚の画像をAIで解析する`;
+  }
+
   function saveSettings() {
     const apiKey = document.getElementById('apiKeyInput').value;
     localStorage.setItem('school_app_api_key', apiKey);
@@ -461,6 +547,7 @@
     if (savedPeople) {
       const people = JSON.parse(savedPeople);
       if (people.length > 0) {
+        document.getElementById('peopleContainer').innerHTML = "";
         people.forEach(p => addPersonForm(p.name, p.keywords));
       } else {
         addDefaultPeople();
@@ -472,6 +559,7 @@
   }
 
   function addDefaultPeople() {
+    document.getElementById('peopleContainer').innerHTML = "";
     addPersonForm("たろう", "第一小学校 2年生 すみれ組 サッカー部");
     addPersonForm("ママ", "PTA役員 広報係 地区役員");
   }
@@ -544,8 +632,8 @@
     if (saved) {
       allEvents = JSON.parse(saved);
       normalizeAllEventDates();
-      renderEvents();
     }
+    renderEvents();
   }
 
   function parseDateForSort(dateStr) {
@@ -554,19 +642,16 @@
     const baseDateVal = document.getElementById('baseDate')?.value;
     const defaultYear = baseDateVal ? baseDateVal.substring(0, 4) : new Date().getFullYear().toString();
 
-    // 全角英数字を半角に変換
     let str = String(dateStr).replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xfee0));
 
-    // YYYY-MM-DD や YYYY/MM/DD のパターン
     let match = str.match(/(\d{4})[^\d]+(\d{1,2})[^\d]+(\d{1,2})/);
     if (match) {
       return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
     }
 
-    // MM-DD や MM/DD のパターン（修正箇所：match[3] -> match[2] に変更）
     match = str.match(/(\d{1,2})[^\d]+(\d{1,2})/);
     if (match) {
-      return `${defaultYear}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`;
+      return `${defaultYear}-${match[1].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
     }
 
     return str;
@@ -735,7 +820,7 @@
     }
 
     const normalizedDate = parseDateForSort(rawDate);
-    const newEvent = { personName, date: normalizedDate, title };
+    const newEvent = { personName, date: normalizedDate, title, tags: [], detail: "" };
 
     const isDuplicate = allEvents.some(e => isSameEvent(e, newEvent));
 
@@ -745,14 +830,7 @@
       }
     }
 
-    allEvents.unshift({
-      personName: personName,
-      date: normalizedDate,
-      title: title,
-      tags: [],
-      detail: ""
-    });
-
+    allEvents.unshift(newEvent);
     document.getElementById('manualTitle').value = "";
     saveEvents();
   }
@@ -761,27 +839,6 @@
     if (confirm("この予定を削除しますか？")) {
       allEvents.splice(index, 1);
       saveEvents();
-    }
-  }
-
-  function handleFiles(files) {
-    const previewContainer = document.getElementById('previewContainer');
-    previewContainer.innerHTML = "";
-    rawSelectedFiles = Array.from(files);
-
-    if (rawSelectedFiles.length > 0) {
-      rawSelectedFiles.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const img = document.createElement('img');
-          img.src = e.target.result;
-          img.className = 'preview-img';
-          previewContainer.appendChild(img);
-        }
-        reader.readAsDataURL(file);
-      });
-
-      document.getElementById('analyzeBtn').disabled = false;
     }
   }
 
@@ -808,6 +865,7 @@
 
     if (targetFiles.length === 0) {
       alert(`選択された ${rawSelectedFiles.length} 件の画像はすべて過去に解析済みです。\n新しい画像はありません。`);
+      clearSelectedImages();
       return;
     }
 
@@ -887,7 +945,6 @@ ${highlightKeywords || '指定なし'}
 
       const rawText = data.candidates[0].content.parts[0].text;
       
-      // JSON形式部分（[から]まで）を厳格に抽出する
       const jsonStart = rawText.indexOf('[');
       const jsonEnd = rawText.lastIndexOf(']');
 
@@ -905,6 +962,7 @@ ${highlightKeywords || '指定なし'}
 
       if (newEvents.length === 0) {
         alert('解析完了：該当する新しい予定は見つかりませんでした。');
+        clearSelectedImages();
         return;
       }
 
@@ -922,6 +980,8 @@ ${highlightKeywords || '指定なし'}
 
       saveEvents();
       alert(`新規画像 ${targetFiles.length} 件を解析し、${addedCount} 件の予定をカレンダーに追加しました！`);
+      
+      clearSelectedImages();
 
     } catch (error) {
       alert(`解析に失敗しました。詳細: ${error.message}`);
