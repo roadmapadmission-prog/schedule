@@ -7,6 +7,7 @@
   <style>
     :root {
       --primary: #4a90e2;
+      --primary-dark: #357abd;
       --bg: #f5f7fa;
       --card: #ffffff;
       --text: #333333;
@@ -51,7 +52,7 @@
       align-items: center;
     }
     .form-group {
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
     label {
       font-size: 0.8rem;
@@ -95,7 +96,7 @@
       background: #10b981;
       color: white;
       border: none;
-      padding: 6px 12px;
+      padding: 4px 10px;
       border-radius: 6px;
       font-size: 0.8rem;
       cursor: pointer;
@@ -181,17 +182,18 @@
     .btn:disabled {
       background: #ccc;
     }
-    .btn-save-settings {
+    .btn-save-all {
       background: #4f46e5;
       color: white;
       border: none;
-      padding: 8px;
-      border-radius: 6px;
-      font-size: 0.85rem;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.95rem;
       font-weight: bold;
       cursor: pointer;
       width: 100%;
-      margin-top: 10px;
+      margin-top: 16px;
+      box-shadow: 0 3px 6px rgba(79, 70, 229, 0.2);
     }
     .btn-reset {
       background: #94a3b8;
@@ -341,12 +343,12 @@
     <div class="card-title">⚙️ 基本設定</div>
     <div class="form-group">
       <label>Gemini APIキー</label>
-      <input type="password" id="apiKeyInput" placeholder="APIキーを入力" onchange="saveSettings()">
+      <input type="password" id="apiKeyInput" placeholder="APIキーを入力" onchange="saveAllData()">
     </div>
     
     <div class="form-group" style="margin-top: 10px;">
       <label>📌 ハイライト（重要）キーワード（読点やスペース区切り）</label>
-      <input type="text" id="highlightKeywordsInput" placeholder="例: 要お弁当 給食なし 早帰り 参観 集金" onchange="saveSettings()">
+      <input type="text" id="highlightKeywordsInput" placeholder="例: 要お弁当 給食なし 早帰り 参観 集金" onchange="saveAllData()">
     </div>
 
     <div class="card-title" style="margin-top: 15px;">
@@ -355,8 +357,6 @@
     </div>
     
     <div id="peopleContainer"></div>
-
-    <button class="btn-save-settings" onclick="manualSaveSettings()">💾 設定を保存する</button>
   </div>
 
   <!-- 画像読み込み & 撮影 -->
@@ -406,7 +406,7 @@
     <button class="btn" style="background: #10b981; margin-top: 5px;" onclick="addManualEvent()">予定を追加する</button>
   </div>
 
-  <!-- 抽出された予定一覧 -->
+  <!-- 抽出された予定一覧 ＋ 一括保存ボタン -->
   <div class="card">
     <div class="card-title">
       📅 登録された予定一覧
@@ -428,6 +428,9 @@
     <div id="eventList" class="event-list">
       <div style="color: #888; font-size: 0.8rem; text-align: center;">予定が追加されるとここに表示されます。</div>
     </div>
+
+    <!-- ここへ一括保存ボタンを移動・配置 -->
+    <button class="btn-save-all" onclick="manualSaveAllData()">💾 設定＆予定をすべて保存する</button>
   </div>
 </div>
 
@@ -440,14 +443,11 @@
   window.onload = function() {
     document.getElementById('baseDate').valueAsDate = new Date();
     document.getElementById('manualDate').valueAsDate = new Date();
-    loadSettings();
-    loadEvents();
+    loadAllData();
   };
 
-  // 画面を離れる時に強制保存
   window.onbeforeunload = function() {
-    saveSettings();
-    saveEvents();
+    saveAllData();
   };
 
   function normalizeDelimiters(text) {
@@ -536,12 +536,7 @@
     analyzeBtn.innerText = `計 ${rawSelectedFiles.length} 枚の画像をAIで解析する`;
   }
 
-  function manualSaveSettings() {
-    saveSettings();
-    alert("設定を保存しました！");
-  }
-
-  function saveSettings() {
+  function saveAllData() {
     const apiKey = document.getElementById('apiKeyInput').value;
     localStorage.setItem('school_app_api_key', apiKey);
 
@@ -550,10 +545,17 @@
 
     const people = getPeopleData();
     localStorage.setItem('school_app_people', JSON.stringify(people));
+
+    localStorage.setItem('school_app_events', JSON.stringify(allEvents));
     updateManualPersonSelect();
   }
 
-  function loadSettings() {
+  function manualSaveAllData() {
+    saveAllData();
+    alert("設定とカレンダーの予定をすべて保存しました！");
+  }
+
+  function loadAllData() {
     const savedApiKey = localStorage.getItem('school_app_api_key');
     if (savedApiKey) {
       document.getElementById('apiKeyInput').value = savedApiKey;
@@ -579,6 +581,13 @@
       addDefaultPeople();
     }
     updateManualPersonSelect();
+
+    const savedEvents = localStorage.getItem('school_app_events');
+    if (savedEvents) {
+      allEvents = JSON.parse(savedEvents);
+      normalizeAllEventDates();
+    }
+    renderEvents();
   }
 
   function addDefaultPeople() {
@@ -612,21 +621,21 @@
       </div>
       <div class="form-group">
         <label>お名前・区分</label>
-        <input type="text" class="person-name" value="${name}" placeholder="例: たろう / パパ / ママ" onchange="saveSettings()">
+        <input type="text" class="person-name" value="${name}" placeholder="例: たろう / パパ / ママ" onchange="saveAllData()">
       </div>
       <div class="form-group">
         <label>関連キーワード・属性（読点やスペース区切りで入力）</label>
-        <input type="text" class="person-keywords" value="${keywords}" placeholder="例: 第一小学校 2年生 すみれ組 サッカー部" onchange="saveSettings()">
+        <input type="text" class="person-keywords" value="${keywords}" placeholder="例: 第一小学校 2年生 すみれ組 サッカー部" onchange="saveAllData()">
       </div>
     `;
     container.appendChild(div);
-    saveSettings();
+    saveAllData();
   }
 
   function removePersonForm(id) {
     const target = document.getElementById(`person_box_${id}`);
     if (target) target.remove();
-    saveSettings();
+    saveAllData();
   }
 
   function getPeopleData() {
@@ -645,20 +654,6 @@
     return people;
   }
 
-  function saveEvents() {
-    localStorage.setItem('school_app_events', JSON.stringify(allEvents));
-    renderEvents();
-  }
-
-  function loadEvents() {
-    const saved = localStorage.getItem('school_app_events');
-    if (saved) {
-      allEvents = JSON.parse(saved);
-      normalizeAllEventDates();
-    }
-    renderEvents();
-  }
-
   function parseDateForSort(dateStr) {
     if (!dateStr) return '9999-99-99';
     
@@ -674,7 +669,7 @@
 
     match = str.match(/(\d{1,2})[^\d]+(\d{1,2})/);
     if (match) {
-      return `${defaultYear}-${match[1].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+      return `${defaultYear}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`;
     }
 
     return str;
@@ -690,7 +685,7 @@
       }
     });
     if (changed) {
-      localStorage.setItem('school_app_events', JSON.stringify(allEvents));
+      saveAllData();
     }
   }
 
@@ -724,7 +719,8 @@
 
     const removedCount = initialCount - uniqueEvents.length;
     allEvents = uniqueEvents;
-    saveEvents();
+    saveAllData();
+    renderEvents();
 
     if (removedCount > 0) {
       alert(`${removedCount} 件の重複した予定を削除・統合しました！`);
@@ -828,7 +824,8 @@
         allEvents.splice(index, 1);
       });
 
-      saveEvents();
+      saveAllData();
+      renderEvents();
     }
   }
 
@@ -855,13 +852,15 @@
 
     allEvents.unshift(newEvent);
     document.getElementById('manualTitle').value = "";
-    saveEvents();
+    saveAllData();
+    renderEvents();
   }
 
   function deleteEvent(index) {
     if (confirm("この予定を削除しますか？")) {
       allEvents.splice(index, 1);
-      saveEvents();
+      saveAllData();
+      renderEvents();
     }
   }
 
@@ -928,7 +927,7 @@ ${highlightKeywords || '指定なし'}
 1. 各対象者の「関連キーワード」に該当する予定を選別し、"personName" にその対象者のお名前を入れてください（全体に関わるものは "共通" としてください）。
 2. 関係のない他学年・他部署・無関係な第三者の予定は除外してください。
 3. 単なる挨拶文、一般的な注意事項（例：「検温をお願いします」「遅刻時は連絡を」等）、日付の特定できない単なるお知らせは除外してください。
-4. 【重要】"date" の表記は、必ず「YYYY-MM-DD」形式（例: 2026-09-14）で統一して出力してください。年がプリント内に記載されていない場合は「プリントの基準日」の年を使用してください。
+4. 【重要】"date" の表記は、必ず「YYYY-MM-DD」形式で統一して出力してください。年がプリント内に記載されていない場合は「プリントの基準日」の年を使用してください。
 5. 【重要ハイライト判定】文脈から「重要・注意すべきハイライトキーワード候補」に合致・関連する事項（例：お弁当が必要、給食がない、早帰り、授業参観、持ち物が必要、集金がある等）があれば、それを短く要約して "tags" 配列に入れてください。該当がなければ空配列 [] にしてください。
 6. "detail" には「持ち物」「時間」「場所」「保護者/本人の参加要否」など分かった情報を箇条書き風に詳しくまとめて記載してください。
 7. 余計な挨拶や解説は一切書かず、純粋なJSON配列のみを出力してください。
@@ -946,7 +945,7 @@ ${highlightKeywords || '指定なし'}
 
       const contentsParts = [{ text: promptText }, ...imageParts];
       
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
       
       const response = await fetch(url, {
         method: 'POST',
@@ -1001,8 +1000,9 @@ ${highlightKeywords || '指定なし'}
         }
       });
 
-      saveEvents();
-      alert(`新規画像 ${targetFiles.length} 件を解析し、${addedCount} 件の予定をカレンダーに追加しました！`);
+      saveAllData();
+      renderEvents();
+      alert(`新規画像 ${targetFiles.length} 件を解析し、${addedCount} 件の予定をカレンダーに追加・保存しました！`);
       
       clearSelectedImages();
 
