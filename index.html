@@ -343,12 +343,12 @@
     <div class="card-title">⚙️ 基本設定</div>
     <div class="form-group">
       <label>Gemini APIキー</label>
-      <input type="password" id="apiKeyInput" placeholder="APIキーを入力" onchange="saveAllData()">
+      <input type="password" id="apiKeyInput" placeholder="APIキーを入力" oninput="saveAllData()">
     </div>
     
     <div class="form-group" style="margin-top: 10px;">
       <label>📌 ハイライト（重要）キーワード（読点やスペース区切り）</label>
-      <input type="text" id="highlightKeywordsInput" placeholder="例: 要お弁当 給食なし 早帰り 参観 集金" onchange="saveAllData()">
+      <input type="text" id="highlightKeywordsInput" placeholder="例: 要お弁当 給食なし 早帰り 参観 集金" oninput="saveAllData()">
     </div>
 
     <div class="card-title" style="margin-top: 15px;">
@@ -429,7 +429,7 @@
       <div style="color: #888; font-size: 0.8rem; text-align: center;">予定が追加されるとここに表示されます。</div>
     </div>
 
-    <!-- ここへ一括保存ボタンを移動・配置 -->
+    <!-- 一括保存ボタン -->
     <button class="btn-save-all" onclick="manualSaveAllData()">💾 設定＆予定をすべて保存する</button>
   </div>
 </div>
@@ -440,15 +440,16 @@
   let allEvents = [];
   const STORAGE_IMAGE_HISTORY_KEY = 'school_app_parsed_images';
 
-  window.onload = function() {
+  // 画面ロード時に復元
+  window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('baseDate').valueAsDate = new Date();
     document.getElementById('manualDate').valueAsDate = new Date();
     loadAllData();
-  };
+  });
 
-  window.onbeforeunload = function() {
-    saveAllData();
-  };
+  // 画面離脱・非表示時に確実に保存（スマホ対策）
+  window.addEventListener('pagehide', saveAllData);
+  window.addEventListener('beforeunload', saveAllData);
 
   function normalizeDelimiters(text) {
     if (!text) return "";
@@ -536,68 +537,85 @@
     analyzeBtn.innerText = `計 ${rawSelectedFiles.length} 枚の画像をAIで解析する`;
   }
 
+  // データ保存処理（自動・手動共通）
   function saveAllData() {
-    const apiKey = document.getElementById('apiKeyInput').value;
-    localStorage.setItem('school_app_api_key', apiKey);
+    try {
+      const apiKey = document.getElementById('apiKeyInput').value;
+      localStorage.setItem('school_app_api_key', apiKey || '');
 
-    const highlightKeywords = document.getElementById('highlightKeywordsInput').value;
-    localStorage.setItem('school_app_highlight_keywords', highlightKeywords);
+      const highlightKeywords = document.getElementById('highlightKeywordsInput').value;
+      localStorage.setItem('school_app_highlight_keywords', highlightKeywords || '');
 
-    const people = getPeopleData();
-    localStorage.setItem('school_app_people', JSON.stringify(people));
+      const people = getPeopleData();
+      localStorage.setItem('school_app_people', JSON.stringify(people));
 
-    localStorage.setItem('school_app_events', JSON.stringify(allEvents));
-    updateManualPersonSelect();
+      localStorage.setItem('school_app_events', JSON.stringify(allEvents));
+      updateManualPersonSelect();
+    } catch (e) {
+      console.error("保存失敗:", e);
+    }
   }
 
   function manualSaveAllData() {
     saveAllData();
-    alert("設定とカレンダーの予定をすべて保存しました！");
+    alert("設定とカレンダーの予定を端末に保存しました！");
   }
 
+  // データ読み込み処理
   function loadAllData() {
-    const savedApiKey = localStorage.getItem('school_app_api_key');
-    if (savedApiKey) {
-      document.getElementById('apiKeyInput').value = savedApiKey;
-    }
+    try {
+      const savedApiKey = localStorage.getItem('school_app_api_key');
+      if (savedApiKey !== null) {
+        document.getElementById('apiKeyInput').value = savedApiKey;
+      }
 
-    const savedKeywords = localStorage.getItem('school_app_highlight_keywords');
-    if (savedKeywords !== null) {
-      document.getElementById('highlightKeywordsInput').value = savedKeywords;
-    } else {
-      document.getElementById('highlightKeywordsInput').value = "要お弁当 給食なし 早帰り 参観 集金";
-    }
+      const savedKeywords = localStorage.getItem('school_app_highlight_keywords');
+      if (savedKeywords !== null) {
+        document.getElementById('highlightKeywordsInput').value = savedKeywords;
+      } else {
+        document.getElementById('highlightKeywordsInput').value = "要お弁当 給食なし 早帰り 参観 集金";
+      }
 
-    const savedPeople = localStorage.getItem('school_app_people');
-    if (savedPeople) {
-      const people = JSON.parse(savedPeople);
-      if (people.length > 0) {
-        document.getElementById('peopleContainer').innerHTML = "";
-        people.forEach(p => addPersonForm(p.name, p.keywords));
+      const savedPeople = localStorage.getItem('school_app_people');
+      document.getElementById('peopleContainer').innerHTML = "";
+      personCount = 0;
+
+      if (savedPeople) {
+        const people = JSON.parse(savedPeople);
+        if (Array.isArray(people) && people.length > 0) {
+          people.forEach(p => addPersonForm(p.name, p.keywords));
+        } else {
+          addDefaultPeople();
+        }
       } else {
         addDefaultPeople();
       }
-    } else {
-      addDefaultPeople();
-    }
-    updateManualPersonSelect();
 
-    const savedEvents = localStorage.getItem('school_app_events');
-    if (savedEvents) {
-      allEvents = JSON.parse(savedEvents);
-      normalizeAllEventDates();
+      const savedEvents = localStorage.getItem('school_app_events');
+      if (savedEvents) {
+        allEvents = JSON.parse(savedEvents);
+        normalizeAllEventDates();
+      } else {
+        allEvents = [];
+      }
+
+      updateManualPersonSelect();
+      renderEvents();
+    } catch (e) {
+      console.error("読み込み失敗:", e);
     }
-    renderEvents();
   }
 
   function addDefaultPeople() {
     document.getElementById('peopleContainer').innerHTML = "";
+    personCount = 0;
     addPersonForm("たろう", "第一小学校 2年生 すみれ組 サッカー部");
     addPersonForm("ママ", "PTA役員 広報係 地区役員");
   }
 
   function updateManualPersonSelect() {
     const select = document.getElementById('manualPersonSelect');
+    if (!select) return;
     select.innerHTML = '<option value="共通">共通</option>';
     const people = getPeopleData();
     people.forEach(p => {
@@ -621,15 +639,14 @@
       </div>
       <div class="form-group">
         <label>お名前・区分</label>
-        <input type="text" class="person-name" value="${name}" placeholder="例: たろう / パパ / ママ" onchange="saveAllData()">
+        <input type="text" class="person-name" value="${name}" placeholder="例: たろう / パパ / ママ" oninput="saveAllData()">
       </div>
       <div class="form-group">
         <label>関連キーワード・属性（読点やスペース区切りで入力）</label>
-        <input type="text" class="person-keywords" value="${keywords}" placeholder="例: 第一小学校 2年生 すみれ組 サッカー部" onchange="saveAllData()">
+        <input type="text" class="person-keywords" value="${keywords}" placeholder="例: 第一小学校 2年生 すみれ組 サッカー部" oninput="saveAllData()">
       </div>
     `;
     container.appendChild(div);
-    saveAllData();
   }
 
   function removePersonForm(id) {
@@ -642,12 +659,12 @@
     const boxes = document.querySelectorAll('.person-box');
     const people = [];
     boxes.forEach(box => {
-      const name = box.querySelector('.person-name').value.trim();
-      const keywords = box.querySelector('.person-keywords').value.trim();
+      const name = box.querySelector('.person-name')?.value.trim();
+      const keywords = box.querySelector('.person-keywords')?.value.trim();
       if (name) {
         people.push({
           name: name,
-          keywords: normalizeDelimiters(keywords)
+          keywords: normalizeDelimiters(keywords || '')
         });
       }
     });
@@ -734,7 +751,7 @@
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     const sortOrder = document.getElementById('sortOrderSelect')?.value || 'asc';
     
-    selectAllCheckbox.checked = false;
+    if (selectAllCheckbox) selectAllCheckbox.checked = false;
     eventList.innerHTML = "";
 
     if (allEvents.length === 0) {
@@ -800,14 +817,13 @@
     const btn = document.getElementById('bulkDeleteBtn');
     const totalBoxes = document.querySelectorAll('.item-checkbox');
 
+    if (!btn) return;
     btn.disabled = checkedBoxes.length === 0;
     btn.textContent = checkedBoxes.length > 0 ? `選択した${checkedBoxes.length}件を削除` : '選択した予定を削除';
 
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-    if (totalBoxes.length > 0 && checkedBoxes.length === totalBoxes.length) {
-      selectAllCheckbox.checked = true;
-    } else {
-      selectAllCheckbox.checked = false;
+    if (selectAllCheckbox) {
+      selectAllCheckbox.checked = (totalBoxes.length > 0 && checkedBoxes.length === totalBoxes.length);
     }
   }
 
@@ -944,7 +960,6 @@ ${highlightKeywords || '指定なし'}
 `;
 
       const contentsParts = [{ text: promptText }, ...imageParts];
-      
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
       
       const response = await fetch(url, {
@@ -966,7 +981,6 @@ ${highlightKeywords || '指定なし'}
       }
 
       const rawText = data.candidates[0].content.parts[0].text;
-      
       const jsonStart = rawText.indexOf('[');
       const jsonEnd = rawText.lastIndexOf(']');
 
@@ -991,7 +1005,6 @@ ${highlightKeywords || '指定なし'}
       let addedCount = 0;
       newEvents.forEach(newEvent => {
         newEvent.date = parseDateForSort(newEvent.date);
-
         const isDuplicate = allEvents.some(existing => isSameEvent(existing, newEvent));
 
         if (!isDuplicate) {
