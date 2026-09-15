@@ -718,10 +718,26 @@
 
     match = str.match(/(\d{1,2})[^\d]+(\d{1,2})/);
     if (match) {
-      return `${defaultYear}-${match[1].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+      return `${defaultYear}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`;
     }
 
     return str;
+  }
+
+  function getDayOfWeek(dateStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return '';
+    
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    
+    const d = new Date(year, month, day);
+    if (isNaN(d.getTime())) return '';
+    
+    const days = ['日', '月', '火', '水', '木', '金', '土'];
+    return days[d.getDay()];
   }
 
   function normalizeAllEventDates() {
@@ -820,12 +836,15 @@
       const hasDetail = item.detail && item.detail.trim() !== "";
       const formattedDetail = hasDetail ? item.detail.replace(/\n/g, '<br>') : '';
 
+      const dayOfWeekStr = getDayOfWeek(item.date);
+      const displayDate = dayOfWeekStr ? `${item.date} (${dayOfWeekStr})` : item.date;
+
       div.innerHTML = `
         <input type="checkbox" class="event-checkbox item-checkbox" data-index="${originalIndex}" onchange="updateBulkDeleteButtonState()">
         <div class="event-content">
           <button class="btn-delete-event" onclick="deleteEvent(${originalIndex})">✕</button>
           <div class="event-date">
-            🗓️ ${item.date} ${item.title}
+            🗓️ ${displayDate} ${item.title}
             <span class="person-tag">${item.personName || '共通'}</span>
             ${tagsHtml}
           </div>
