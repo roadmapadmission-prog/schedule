@@ -824,15 +824,22 @@
       const div = document.createElement('div');
       div.className = 'event-item';
       
+      // 現在設定されている重要キーワードを取得して配列化
+      const currentKeywordsInput = document.getElementById('highlightKeywordsInput')?.value || '';
+      const currentKeywords = currentKeywordsInput.split(/[、,，\s]+/).filter(k => k.trim() !== '');
+ 
       let tagsHtml = "";
-      if (item.tags && Array.isArray(item.tags)) {
-        item.tags.forEach(tag => {
-          if (tag) {
-            tagsHtml += `<span class="highlight-tag">📌 ${tag}</span>`;
+      if (currentKeywords.length > 0) {
+      // 予定のタイトルと詳細を結合してチェック用テキストを作成
+      const targetText = `${item.title || ''} ${item.detail || ''}`;
+  
+      currentKeywords.forEach(keyword => {
+          if (keyword && targetText.includes(keyword)) {
+            tagsHtml += `<span class="highlight-tag">📌 ${keyword}</span>`;
           }
         });
       }
-
+      
       const hasDetail = item.detail && item.detail.trim() !== "";
       const formattedDetail = hasDetail ? item.detail.replace(/\n/g, '<br>') : '';
 
