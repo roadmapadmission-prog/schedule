@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>らくすけ 〜撮影するだけ！おまかせスケジュール〜</title>
+  <title>いつだっけ？ 〜撮影するだけ！おまかせスケジュール〜</title>
   <style>
     :root {
       --primary: #4a90e2;
@@ -363,9 +363,9 @@
 <body>
 
 <div class="container">
-  <!-- ① デコレーションタイトル部分 -->
+  <!-- デコレーションタイトル部分 -->
   <div class="app-title-container">
-    <div class="app-title-main">📅 らくすけ</div>
+    <div class="app-title-main">📅 いつだっけ？</div>
     <span class="app-title-sub">〜撮影するだけ！おまかせスケジュール〜</span>
   </div>
 
@@ -824,16 +824,13 @@
       const div = document.createElement('div');
       div.className = 'event-item';
       
-      // 現在設定されている重要キーワードを取得して配列化
       const currentKeywordsInput = document.getElementById('highlightKeywordsInput')?.value || '';
       const currentKeywords = currentKeywordsInput.split(/[、,，\s]+/).filter(k => k.trim() !== '');
- 
+
       let tagsHtml = "";
       if (currentKeywords.length > 0) {
-      // 予定のタイトルと詳細を結合してチェック用テキストを作成
-      const targetText = `${item.title || ''} ${item.detail || ''}`;
-  
-      currentKeywords.forEach(keyword => {
+        const targetText = `${item.title || ''} ${item.detail || ''}`;
+        currentKeywords.forEach(keyword => {
           if (keyword && targetText.includes(keyword)) {
             tagsHtml += `<span class="highlight-tag">📌 ${keyword}</span>`;
           }
@@ -938,6 +935,51 @@
     }
   }
 
+  // --- 🌟 画像自動リサイズ・圧縮関数 ---
+  function resizeImageFile(file, maxSide = 1600, quality = 0.85) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let width = img.width;
+        let height = img.height;
+
+        // 長辺が maxSide を超える場合に縮小
+        if (width > maxSide || height > maxSide) {
+          if (width > height) {
+            height = Math.round((height * maxSide) / width);
+            width = maxSide;
+          } else {
+            width = Math.round((width * maxSide) / height);
+            height = maxSide;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // JPEG画像へ圧縮変換（Base64文字列からプレフィックスを除去）
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        const base64Data = dataUrl.split(',')[1];
+        resolve(base64Data);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        // エラー時はフォールバックとして元画像をそのままBase64化
+        fileToBase64(file).then(resolve);
+      };
+
+      img.src = url;
+    });
+  }
+
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -969,14 +1011,15 @@
     }
 
     btn.disabled = true;
-    btn.innerText = `新規 ${targetFiles.length} 件をAI解析中...`;
+    btn.innerText = `画像を自動圧縮して解析中...`;
 
     try {
+      // リサイズ・圧縮処理を適用して Base64 化
       const imageParts = await Promise.all(
         targetFiles.map(async file => ({
           inline_data: {
-            mime_type: file.type || "image/jpeg",
-            data: await fileToBase64(file)
+            mime_type: "image/jpeg",
+            data: await resizeImageFile(file, 1600, 0.85)
           }
         }))
       );
