@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>いつだっけ？ 〜撮影するだけ！おまかせスケジュール〜</title>
+  <!-- PWA用の設定 -->
+  <link rel="manifest" href="manifest.json">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
   <style>
     :root {
       --primary: #4a90e2;
@@ -29,7 +36,6 @@
       gap: 16px;
     }
 
-    /* --- ① タイトルデコレーション追加 --- */
     .app-title-container {
       text-align: center;
       margin: 10px 0 5px 0;
@@ -51,14 +57,13 @@
       font-weight: 700;
       color: #0369a1;
       letter-spacing: 0.02em;
-      white-space: nowrap; /* 改行防止 */
+      white-space: nowrap;
       background: #e0f2fe;
       padding: 3px 12px;
       border-radius: 20px;
       display: inline-block;
       box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
     }
-    /* ---------------------------------- */
 
     .card {
       background: var(--card);
@@ -359,17 +364,19 @@
       justify-content: center;
     }
   </style>
+
+  <!-- ★ Firebase SDK の読み込み -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
 <div class="container">
-  <!-- デコレーションタイトル部分 -->
   <div class="app-title-container">
     <div class="app-title-main">📅 いつだっけ？</div>
     <span class="app-title-sub">〜撮影するだけ！おまかせスケジュール〜</span>
   </div>
 
-  <!-- 設定・マスター情報 -->
   <div class="card">
     <div class="card-title">⚙️ 基本設定</div>
     <div class="form-group">
@@ -390,7 +397,6 @@
     <div id="peopleContainer"></div>
   </div>
 
-  <!-- 画像読み込み & 撮影 -->
   <div class="card">
     <div class="card-title">
       📸 プリント・資料読み込み
@@ -415,7 +421,6 @@
     <button class="btn" id="analyzeBtn" disabled onclick="analyzeImagesWithGemini()">AIで解析してカレンダーに登録</button>
   </div>
 
-  <!-- 手動追加フォーム -->
   <div class="card">
     <div class="card-title">✏️ 予定の手動追加</div>
     <div class="form-row">
@@ -437,14 +442,12 @@
     <button class="btn" style="background: #10b981; margin-top: 5px;" onclick="addManualEvent()">予定を追加する</button>
   </div>
 
-  <!-- 抽出された予定一覧 ＋ 一括保存ボタン -->
   <div class="card">
     <div class="card-title">
       📅 登録された予定一覧
       <button class="btn-dedup" onclick="cleanupDuplicates()">🧹 重複整理</button>
     </div>
     
-    <!-- 一括操作エリア -->
     <div class="list-action-bar">
       <label class="select-all-label">
         <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)"> 全選択
@@ -460,12 +463,25 @@
       <div style="color: #888; font-size: 0.8rem; text-align: center;">予定が追加されるとここに表示されます。</div>
     </div>
 
-    <!-- 一括保存ボタン -->
-    <button class="btn-save-all" onclick="manualSaveAllData()">💾 設定＆予定をすべて保存する</button>
+    <button class="btn-save-all" onclick="manualSaveAllData()">💾 設定＆予定をクラウドに保存する</button>
   </div>
 </div>
 
 <script>
+  // ★ Firebase の設定情報（ここにご自身のキーを貼り付けてください）
+  const firebaseConfig = {
+    apiKey: "AIzaSyAI-1wGRJbnbhNQLniMKnZ_-XMr53lqUGI",
+    authDomain: "school-calendar-app-c01d6.firebaseapp.com",
+    projectId: "school-calendar-app-c01d6",
+    storageBucket: "school-calendar-app-c01d6.firebasestorage.app",
+    messagingSenderId: "177417149315",
+    appId: "1:177417149315:web:2a187de08d41f0a356f4b6"
+  };
+
+  // Firebase の初期化
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
   let rawSelectedFiles = [];
   let personCount = 0;
   let allEvents = [];
@@ -571,70 +587,76 @@
     analyzeBtn.innerText = `計 ${rawSelectedFiles.length} 枚の画像をAIで解析する`;
   }
 
-  function saveAllData() {
+  // ★ Firebase Firestore への保存関数
+  async function saveAllData() {
     try {
       const apiKey = document.getElementById('apiKeyInput').value;
-      localStorage.setItem('school_app_api_key', apiKey || '');
-
       const highlightKeywords = document.getElementById('highlightKeywordsInput').value;
-      localStorage.setItem('school_app_highlight_keywords', highlightKeywords || '');
-
       const people = getPeopleData();
-      localStorage.setItem('school_app_people', JSON.stringify(people));
 
-      localStorage.setItem('school_app_events', JSON.stringify(allEvents));
+      // Firestore の app_data ドキュメントに保存
+      await db.collection("settings").doc("app_data").set({
+        apiKey: apiKey || '',
+        highlightKeywords: highlightKeywords || '',
+        people: people,
+        events: allEvents,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+
       updateManualPersonSelect();
     } catch (e) {
-      console.error("保存失敗:", e);
+      console.error("Firebaseへの保存失敗:", e);
     }
   }
 
-  function manualSaveAllData() {
-    saveAllData();
-    alert("設定とカレンダーの予定を端末に保存しました！");
+  async function manualSaveAllData() {
+    await saveAllData();
+    alert("設定とカレンダーの予定をクラウド（Firebase）に保存しました！");
   }
 
-  function loadAllData() {
+  // ★ Firebase Firestore からの読み込み関数
+  async function loadAllData() {
     try {
-      const savedApiKey = localStorage.getItem('school_app_api_key');
-      if (savedApiKey !== null) {
-        document.getElementById('apiKeyInput').value = savedApiKey;
-      }
+      const doc = await db.collection("settings").doc("app_data").get();
 
-      const savedKeywords = localStorage.getItem('school_app_highlight_keywords');
-      if (savedKeywords !== null) {
-        document.getElementById('highlightKeywordsInput').value = savedKeywords;
-      } else {
-        document.getElementById('highlightKeywordsInput').value = "お弁当 早帰り 集金";
-      }
+      if (doc.exists) {
+        const data = doc.data();
 
-      const savedPeople = localStorage.getItem('school_app_people');
-      document.getElementById('peopleContainer').innerHTML = "";
-      personCount = 0;
+        if (data.apiKey !== undefined) {
+          document.getElementById('apiKeyInput').value = data.apiKey;
+        }
 
-      if (savedPeople) {
-        const people = JSON.parse(savedPeople);
-        if (Array.isArray(people) && people.length > 0) {
-          people.forEach(p => addPersonForm(p.name, p.keywords));
+        if (data.highlightKeywords !== undefined) {
+          document.getElementById('highlightKeywordsInput').value = data.highlightKeywords;
+        } else {
+          document.getElementById('highlightKeywordsInput').value = "お弁当 早帰り 集金";
+        }
+
+        document.getElementById('peopleContainer').innerHTML = "";
+        personCount = 0;
+
+        if (data.people && Array.isArray(data.people) && data.people.length > 0) {
+          data.people.forEach(p => addPersonForm(p.name, p.keywords));
         } else {
           addDefaultPeople();
         }
-      } else {
-        addDefaultPeople();
-      }
 
-      const savedEvents = localStorage.getItem('school_app_events');
-      if (savedEvents) {
-        allEvents = JSON.parse(savedEvents);
-        normalizeAllEventDates();
+        if (data.events && Array.isArray(data.events)) {
+          allEvents = data.events;
+          normalizeAllEventDates();
+        } else {
+          allEvents = [];
+        }
       } else {
-        allEvents = [];
+        // クラウドにデータがまだ無い場合は初期値をセット
+        addDefaultPeople();
+        document.getElementById('highlightKeywordsInput').value = "お弁当 早帰り 集金";
       }
 
       updateManualPersonSelect();
       renderEvents();
     } catch (e) {
-      console.error("読み込み失敗:", e);
+      console.error("Firebaseからの読み込み失敗:", e);
     }
   }
 
@@ -935,7 +957,6 @@
     }
   }
 
-  // --- 🌟 画像自動リサイズ・圧縮関数 ---
   function resizeImageFile(file, maxSide = 1600, quality = 0.85) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -946,7 +967,6 @@
         let width = img.width;
         let height = img.height;
 
-        // 長辺が maxSide を超える場合に縮小
         if (width > maxSide || height > maxSide) {
           if (width > height) {
             height = Math.round((height * maxSide) / width);
@@ -964,7 +984,6 @@
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
 
-        // JPEG画像へ圧縮変換（Base64文字列からプレフィックスを除去）
         const dataUrl = canvas.toDataURL('image/jpeg', quality);
         const base64Data = dataUrl.split(',')[1];
         resolve(base64Data);
@@ -972,7 +991,6 @@
 
       img.onerror = () => {
         URL.revokeObjectURL(url);
-        // エラー時はフォールバックとして元画像をそのままBase64化
         fileToBase64(file).then(resolve);
       };
 
@@ -1014,7 +1032,6 @@
     btn.innerText = `画像を自動圧縮して解析中...`;
 
     try {
-      // リサイズ・圧縮処理を適用して Base64 化
       const imageParts = await Promise.all(
         targetFiles.map(async file => ({
           inline_data: {
@@ -1064,7 +1081,7 @@ ${highlightKeywords || '指定なし'}
 `;
 
       const contentsParts = [{ text: promptText }, ...imageParts];
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
       
       const response = await fetch(url, {
         method: 'POST',
@@ -1076,11 +1093,15 @@ ${highlightKeywords || '指定なし'}
 
       if (data.error) {
         alert(`APIエラー: ${data.error.message}`);
+        btn.disabled = false;
+        btn.innerText = `計 ${rawSelectedFiles.length} 枚の画像をAIで解析する`;
         return;
       }
 
       if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
         alert("AIからの応答を取得できませんでした。再度お試しください。");
+        btn.disabled = false;
+        btn.innerText = `計 ${rawSelectedFiles.length} 枚の画像をAIで解析する`;
         return;
       }
 
@@ -1091,6 +1112,8 @@ ${highlightKeywords || '指定なし'}
       if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
         console.error("AIからの生レスポンス:", rawText);
         alert("AIからの回答から予定データを読み取れませんでした。もう一度送信してみてください。");
+        btn.disabled = false;
+        btn.innerText = `計 ${rawSelectedFiles.length} 枚の画像をAIで解析する`;
         return;
       }
 
@@ -1108,29 +1131,27 @@ ${highlightKeywords || '指定なし'}
       let addedCount = 0;
       newEvents.forEach(newEvent => {
         newEvent.date = parseDateForSort(newEvent.date);
-        const isDuplicate = allEvents.some(existing => isSameEvent(existing, newEvent));
-
+        const isDuplicate = allEvents.some(e => isSameEvent(e, newEvent));
         if (!isDuplicate) {
-          allEvents.unshift(newEvent);
+          allEvents.push(newEvent);
           addedCount++;
         }
       });
 
-      saveAllData();
+      await saveAllData();
       renderEvents();
-      alert(`新規画像 ${targetFiles.length} 件を解析し、${addedCount} 件の予定をカレンダーに追加・保存しました！`);
-      
       clearSelectedImages();
 
-    } catch (error) {
-      alert(`解析に失敗しました。詳細: ${error.message}`);
-      console.error("解析エラー詳細:", error);
+      alert(`解析完了：${addedCount} 件の新しい予定を登録しました！`);
+
+    } catch (e) {
+      console.error("解析エラー:", e);
+      alert("解析中にエラーが発生しました。詳細: " + e.message);
     } finally {
       btn.disabled = false;
       btn.innerText = 'AIで解析してカレンダーに登録';
     }
   }
 </script>
-
 </body>
 </html>
