@@ -1,3 +1,4 @@
+HTML
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -282,15 +283,6 @@
       color: white;
       cursor: pointer;
     }
-    .btn-dedup {
-      background: #8b5cf6;
-      font-size: 0.75rem;
-      padding: 4px 8px;
-      border: none;
-      border-radius: 4px;
-      color: white;
-      cursor: pointer;
-    }
     .list-action-bar {
       display: flex;
       justify-content: space-between;
@@ -411,7 +403,7 @@
     }
   </style>
 
-  <!-- ★ Firebase SDK の読み込み (Authを追加) -->
+  <!-- ★ Firebase SDK の読み込み -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -521,7 +513,6 @@
     <div class="card">
       <div class="card-title">
         📅 登録された予定一覧
-        <button class="btn-dedup" onclick="cleanupDuplicates()">🧹 重複整理</button>
       </div>
       
       <div class="list-action-bar">
@@ -539,7 +530,7 @@
         <div style="color: #888; font-size: 0.8rem; text-align: center;">予定が追加されるとここに表示されます。</div>
       </div>
 
-      <button class="btn-save-all" onclick="manualSaveAllData()">💾 設定＆予定をクラウドに保存する</button>
+      <button class="btn-save-all" onclick="manualSaveAllData()">💾 変更を保存する</button>
     </div>
 
   </div><!-- /#mainContent -->
@@ -704,14 +695,13 @@
 
   // ★ Firebase Firestore への保存関数（未ログイン時は処理しない）
   async function saveAllData() {
-    if (!auth.currentUser) return; // ログインしていない場合は保存しない
+    if (!auth.currentUser) return;
 
     try {
       const apiKey = document.getElementById('apiKeyInput').value;
       const highlightKeywords = document.getElementById('highlightKeywordsInput').value;
       const people = getPeopleData();
 
-      // Firestore の app_data ドキュメントに保存
       await db.collection("settings").doc("app_data").set({
         apiKey: apiKey || '',
         highlightKeywords: highlightKeywords || '',
@@ -728,12 +718,12 @@
 
   async function manualSaveAllData() {
     await saveAllData();
-    alert("設定とカレンダーの予定をクラウド（Firebase）に保存しました！");
+    alert("変更をクラウドに保存しました！");
   }
 
   // ★ Firebase Firestore からの読み込み関数（未ログイン時は処理しない）
   async function loadAllData() {
-    if (!auth.currentUser) return; // ログインしていない場合は読み込まない
+    if (!auth.currentUser) return;
 
     try {
       const doc = await db.collection("settings").doc("app_data").get();
@@ -767,7 +757,6 @@
           allEvents = [];
         }
       } else {
-        // クラウドにデータがまだ無い場合は初期値をセット
         addDefaultPeople();
         document.getElementById('highlightKeywordsInput').value = "お弁当 早帰り 集金";
       }
@@ -904,35 +893,6 @@
     const t2 = (e2.title || '').trim();
 
     return d1 === d2 && p1 === p2 && t1 === t2;
-  }
-
-  function cleanupDuplicates() {
-    normalizeAllEventDates();
-    const initialCount = allEvents.length;
-    const uniqueEvents = [];
-
-    allEvents.forEach(item => {
-      const exists = uniqueEvents.some(u => isSameEvent(u, item));
-      if (!exists) {
-        uniqueEvents.push(item);
-      } else {
-        const target = uniqueEvents.find(u => isSameEvent(u, item));
-        if (item.detail && item.detail.length > (target.detail || '').length) {
-          target.detail = item.detail;
-        }
-      }
-    });
-
-    const removedCount = initialCount - uniqueEvents.length;
-    allEvents = uniqueEvents;
-    saveAllData();
-    renderEvents();
-
-    if (removedCount > 0) {
-      alert(`${removedCount} 件の重複した予定を削除・統合しました！`);
-    } else {
-      alert('重複する予定はありませんでした。');
-    }
   }
 
   function renderEvents() {
